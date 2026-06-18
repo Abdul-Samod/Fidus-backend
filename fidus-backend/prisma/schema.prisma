@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Users {
+  uuid              String             @id @default(uuid()) @db.Uuid
+  FullName          String
+  Email             String             @unique
+  Role              String             // "Client" or "Artisan"
+  PasswordHash      String
+  KYC_Verified      Boolean            @default(false)
+  WTA_Score         Float              @default(0.0)
+  
+  Service_Requests  Service_Requests[] 
+  Bids              Bids[]             
+  ReviewsGiven      Reviews[]          @relation("Reviewer")
+  ReviewsReceived   Reviews[]          @relation("Reviewee")
+}
+
+model Service_Requests {
+  RequestID           String                @id @default(uuid()) @db.Uuid
+  ClientID            String                @db.Uuid
+  Client              Users                 @relation(fields: [ClientID], references: [uuid])
+  Description         String
+  LocationCoordinates String
+  Status              String                @default("Open") // Open, Assigned, Completed
+  
+  Bids                Bids[]
+  Escrow_Transaction  Escrow_Transactions?
+  Reviews             Reviews[]
+}
+
+model Bids {
+  BidID        String           @id @default(uuid()) @db.Uuid
+  RequestID    String           @db.Uuid
+  Service      Service_Requests @relation(fields: [RequestID], references: [RequestID])
+  ArtisanID    String           @db.Uuid
+  Artisan      Users            @relation(fields: [ArtisanID], references: [uuid])
+  QuoteAmount  Float
+  BidStatus    String           @default("Pending") // Pending, Accepted, Rejected
+}
+
+model Escrow_Transactions {
+  TransactionID String           @id @default(uuid()) @db.Uuid
+  RequestID     String           @unique @db.Uuid
+  Service       Service_Requests @relation(fields: [RequestID], references: [RequestID])
+  AmountHeld    Float
+  EscrowStatus  String           @default("Pending") // Funded, Released, Disputed
+}
+
+model Reviews {
+  ReviewID    String           @id @default(uuid()) @db.Uuid
+  RequestID   String           @db.Uuid
+  Service     Service_Requests @relation(fields: [RequestID], references: [RequestID])
+  ReviewerID  String           @db.Uuid
+  Reviewer    Users            @relation("Reviewer", fields: [ReviewerID], references: [uuid])
+  RevieweeID  String           @db.Uuid
+  Reviewee    Users            @relation("Reviewee", fields: [RevieweeID], references: [uuid])
+  WTA_Weight  Int
+}
