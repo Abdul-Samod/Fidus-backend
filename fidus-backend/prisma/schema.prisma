@@ -19,6 +19,9 @@ model Users {
   Bids              Bids[]             
   ReviewsGiven      Reviews[]          @relation("Reviewer")
   ReviewsReceived   Reviews[]          @relation("Reviewee")
+
+  // CLOUDINARY LINK: Connects the user to their KYC documents
+  kycDetails        KycSubmission?
 }
 
 model Service_Requests {
@@ -27,6 +30,7 @@ model Service_Requests {
   Client              Users                 @relation(fields: [ClientID], references: [uuid])
   Description         String
   LocationCoordinates String
+  PriceRange          String  
   Status              String                @default("Open") // Open, Assigned, Completed
   
   Bids                Bids[]
@@ -53,12 +57,25 @@ model Escrow_Transactions {
 }
 
 model Reviews {
-  ReviewID    String           @id @default(uuid()) @db.Uuid
-  RequestID   String           @db.Uuid
-  Service     Service_Requests @relation(fields: [RequestID], references: [RequestID])
-  ReviewerID  String           @db.Uuid
-  Reviewer    Users            @relation("Reviewer", fields: [ReviewerID], references: [uuid])
-  RevieweeID  String           @db.Uuid
-  Reviewee    Users            @relation("Reviewee", fields: [RevieweeID], references: [uuid])
-  WTA_Weight  Int
+  ReviewID   String           @id @default(uuid()) @db.Uuid
+  RequestID  String           @db.Uuid
+  Service    Service_Requests @relation(fields: [RequestID], references: [RequestID])
+  ReviewerID String           @db.Uuid
+  Reviewer   Users            @relation("Reviewer", fields: [ReviewerID], references: [uuid])
+  RevieweeID String           @db.Uuid
+  Reviewee   Users            @relation("Reviewee", fields: [RevieweeID], references: [uuid])
+  WTA_Weight Int
+}
+
+// Stores the secure Cloudinary URLs
+model KycSubmission {
+  id            String   @id @default(uuid()) @db.Uuid
+  userUuid      String   @unique @db.Uuid
+  user          Users    @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+  
+  ninUrl        String?  
+  profilePicUrl String?
+  businessCert  String?  
+  
+  updatedAt     DateTime @updatedAt
 }
