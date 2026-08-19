@@ -39,13 +39,16 @@ model Service_Requests {
 }
 
 model Bids {
-  BidID        String           @id @default(uuid()) @db.Uuid
-  RequestID    String           @db.Uuid
-  Service      Service_Requests @relation(fields: [RequestID], references: [RequestID])
-  ArtisanID    String           @db.Uuid
-  Artisan      Users            @relation(fields: [ArtisanID], references: [uuid])
-  QuoteAmount  Float
-  BidStatus    String           @default("Pending") // Pending, Accepted, Rejected
+  BidID         String           @id @default(uuid()) @db.Uuid
+  RequestID     String           @db.Uuid
+  Service       Service_Requests @relation(fields: [RequestID], references: [RequestID])
+  ArtisanID     String           @db.Uuid
+  Artisan       Users            @relation(fields: [ArtisanID], references: [uuid])
+  
+  ProposedPrice Decimal          // Upgraded for precise financial math
+  Message       String           // The proposal message
+  CounterAmount Decimal?         // Optional: The client's counter-offer
+  BidStatus     String           @default("Pending") // Pending, Counter_Offered, Accepted, Rejected
 }
 
 model Escrow_Transactions {

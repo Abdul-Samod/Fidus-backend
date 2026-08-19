@@ -7,6 +7,7 @@ import pg from "pg";
 import authRoutes from "./routes/auth.js";
 import kycRoutes from "./routes/kyc.js";
 import serviceRoutes from "./routes/services.js"
+import bidRoutes from "./routes/bids.js";
 
 // Setting up the raw PostgreSQL connection
 const { Pool } = pg;
@@ -25,7 +26,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/services', serviceRoutes);
-
+app.use('/api/bids', bidRoutes);
 // Health Check Endpoint
 app.get('/api/health', async (req, res) => {
   try {
