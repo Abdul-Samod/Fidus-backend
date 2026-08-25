@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.js";
 import kycRoutes from "./routes/kyc.js";
 import serviceRoutes from "./routes/services.js"
 import bidRoutes from "./routes/bids.js";
+import reviewsRoutes from './routes/reviews.js';
 
 // Setting up the raw PostgreSQL connection
 const { Pool } = pg;
@@ -27,18 +28,20 @@ app.use('/api/auth', authRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/bids', bidRoutes);
+app.use('/api/reviews', reviewsRoutes);
+
 // Health Check Endpoint
 app.get('/api/health', async (req, res) => {
   try {
     // Pinging the database to check if it's awake
     await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ 
-      status: 'success', 
-      message: 'Fidus Backend is LIVE and securely connected to PostgreSQL!' 
+    res.status(200).json({
+      status: 'success',
+      message: 'Fidus Backend is LIVE and securely connected to PostgreSQL!'
     });
   } catch (error) {
-    res.status(500).json({ 
-      status: 'error', 
+    res.status(500).json({
+      status: 'error',
       message: 'Database connection failed.',
       details: error
     });

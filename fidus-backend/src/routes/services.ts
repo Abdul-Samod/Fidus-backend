@@ -3,6 +3,7 @@ import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import { updateArtisanWTA } from "../services/wtaService.js";
 
 // Database Connection Setup
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -161,6 +162,96 @@ router.get('/my-requests', requireAuth, async (req: AuthRequest, res: Response):
             status: 'error',
             message: 'Failed to fetch your jobs.'
         });
+    }
+});
+
+// ==========================================
+// THE 2-PARTY COMPLETION HANDSHAKE (Client + Artisan)
+// ==========================================
+router.post('/:jobId/complete', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userUuid = (req.user as any).uuid;
+        const userRole = (req.user as any).role;
+        const { jobId } = req.params;
+
+        // 1. Fetch the job and the accepted bid
+        const job = await prisma.service_Requests.findUnique({
+            where: { RequestID: jobId as string },
+            include: { Bids: { where: { BidStatus: 'Accepted' } } }
+        });
+
+        if (!job) {
+            res.status(404).json({ status: 'error', message: 'Job not found.' });
+            return;
+        }
+
+        if (job.Status !== 'Assigned') {
+            res.status(400).json({ status: 'error', message: 'Only assigned jobs can be marked as completed.' });
+            return;
+        }
+
+        // 2. Validate the actor and determine which flag to flip
+        let updateData: any = {};
+        const acceptedBid = job.Bids[0];
+
+        if (!acceptedBid) {
+            res.status(500).json({ status: 'error', message: 'No accepted bid found for this assigned job.' });
+            return;
+        }
+
+        if (userRole === 'Client') {
+            if (job.ClientID !== userUuid) {
+                res.status(403).json({ status: 'error', message: 'You do not own this job.' });
+                return;
+            }
+            updateData = { ClientCompleted: true };
+        } else if (userRole === 'Artisan') {
+            if (acceptedBid.ArtisanID !== userUuid) {
+                res.status(403).json({ status: 'error', message: 'You are not the assigned artisan for this job.' });
+                return;
+            }
+            updateData = { ArtisanCompleted: true };
+        } else {
+            res.status(403).json({ status: 'error', message: 'Invalid role for this action.' });
+            return;
+        }
+
+        // 3. Update the specific user's flag
+        const updatedJob = await prisma.service_Requests.update({
+            where: { RequestID: jobId as string },
+            data: updateData
+        });
+
+        // 4. CHECK THE HANDSHAKE: Did both parties agree?
+        if (updatedJob.ClientCompleted && updatedJob.ArtisanCompleted) {
+            
+            // Finalize the job status
+            const finalizedJob = await prisma.service_Requests.update({
+                where: { RequestID: jobId as string },
+                data: { Status: 'Completed' }
+            });
+
+            // TRIGGER 1: Fire the WTA Engine immediately for completion points!
+            const wtaMetrics = await updateArtisanWTA(acceptedBid.ArtisanID);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Handshake complete! Job is officially closed. WTA Completion points awarded!',
+                data: { job: finalizedJob, wta_metrics: wtaMetrics }
+            });
+            return;
+        }
+
+        // 5. If waiting on the other party
+        res.status(200).json({
+            status: 'success',
+            message: `${userRole} completion registered. Waiting for the other party to confirm.`,
+            data: updatedJob
+        });
+
+    } catch (error: any) {
+        console.error("HANDSHAKE ERROR:", error.message);
+        res.status(500).json({ status: 'error', message: 'Failed to process completion handshake.' });
     }
 });
 export default router;

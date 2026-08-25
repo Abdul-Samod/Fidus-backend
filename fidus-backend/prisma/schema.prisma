@@ -17,8 +17,8 @@ model Users {
   
   Service_Requests  Service_Requests[] 
   Bids              Bids[]             
-  ReviewsGiven      Reviews[]          @relation("Reviewer")
-  ReviewsReceived   Reviews[]          @relation("Reviewee")
+  ReviewsGiven      Reviews[]          @relation("ClientReviews")
+  ReviewsReceived   Reviews[]          @relation("ArtisanReviews")
 
   // CLOUDINARY LINK: Connects the user to their KYC documents
   kycDetails        KycSubmission?
@@ -32,6 +32,8 @@ model Service_Requests {
   LocationCoordinates String
   PriceRange          String  
   Status              String                @default("Open") // Open, Assigned, Completed
+  ClientCompleted     Boolean               @default(false)
+  ArtisanCompleted    Boolean               @default(false)
   
   Bids                Bids[]
   Escrow_Transaction  Escrow_Transactions?
@@ -63,11 +65,14 @@ model Reviews {
   ReviewID   String           @id @default(uuid()) @db.Uuid
   RequestID  String           @db.Uuid
   Service    Service_Requests @relation(fields: [RequestID], references: [RequestID])
-  ReviewerID String           @db.Uuid
-  Reviewer   Users            @relation("Reviewer", fields: [ReviewerID], references: [uuid])
-  RevieweeID String           @db.Uuid
-  Reviewee   Users            @relation("Reviewee", fields: [RevieweeID], references: [uuid])
-  WTA_Weight Int
+  ClientID   String           @db.Uuid
+  Client     Users            @relation("ClientReviews", fields: [ClientID], references: [uuid])
+  ArtisanID  String           @db.Uuid
+  Artisan    Users            @relation("ArtisanReviews", fields: [ArtisanID], references: [uuid])
+  
+  Rating     Int              // The "F" Variable: 1 to 5 stars
+  Comment    String?          // Qualitative feedback
+  CreatedAt  DateTime         @default(now())
 }
 
 // Stores the secure Cloudinary URLs
