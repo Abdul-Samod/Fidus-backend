@@ -1,20 +1,15 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
+import prisma from "./prisma.js";
 import authRoutes from "./routes/auth.js";
 import kycRoutes from "./routes/kyc.js";
 import serviceRoutes from "./routes/services.js"
 import bidRoutes from "./routes/bids.js";
 import reviewsRoutes from './routes/reviews.js';
+import escrowRoutes from './routes/escrow.js';
 
-// Setting up the raw PostgreSQL connection
-const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +24,7 @@ app.use('/api/kyc', kycRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/bids', bidRoutes);
 app.use('/api/reviews', reviewsRoutes);
+app.use('/api/escrow', escrowRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', async (req, res) => {

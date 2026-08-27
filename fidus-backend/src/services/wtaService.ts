@@ -1,11 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'; 
-import { Pool } from 'pg'; 
+import prisma from "../prisma.js";
 
-// Setup DB connection for the service layer
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+
 
 /**
  * Calculates and updates the Fidus Weighted Trust Algorithm (WTA) score for a given artisan.
