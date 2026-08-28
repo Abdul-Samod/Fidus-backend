@@ -1,9 +1,13 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-// Type definition: Object should only hold a custom 'user' property
+export interface FidusJwtPayload extends jwt.JwtPayload {
+  uuid: string;
+  role: string;
+}
+
 export interface AuthRequest extends Request {
-  user?: string | jwt.JwtPayload;
+  user?: FidusJwtPayload;
 }
 
 export const requireAuth = (
@@ -43,7 +47,7 @@ export const requireAuth = (
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
 
     // Attach decoded payload(UUID and role) to the request object
-    req.user = decoded;
+    req.user = decoded as FidusJwtPayload;
 
     // Grant user access to thye route
     next();

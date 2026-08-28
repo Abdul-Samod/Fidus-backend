@@ -47,13 +47,14 @@ export const updateArtisanWTA = async (artisanID: string) => {
     const completedJobs = artisanJobs.filter(j => j.Status === 'Completed').length;
     const C = N > 0 ? (completedJobs / N) : 0;
 
-    // 5. Calculate F (Client Feedback Average)
-    const allReviews = await prisma.reviews.findMany({
-        where: { ArtisanID: artisanID } 
+    // 5. Calculate F (Client Feedback Average) using SQL aggregation
+    const reviewStats = await prisma.reviews.aggregate({
+        where: { ArtisanID: artisanID },
+        _avg: { Rating: true },
+        _count: { Rating: true }
     });
     
-    const totalStars = allReviews.reduce((sum, rev) => sum + rev.Rating, 0);
-    const F = allReviews.length > 0 ? (totalStars / allReviews.length) : 0;
+    const F = reviewStats._avg.Rating || 0;
 
     // 6. Execute the Dynamic WTA Formula
     const logDampener = Math.log10(N + 1);
