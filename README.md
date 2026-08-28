@@ -1,6 +1,6 @@
 # Fidus — Trust-Based Service Matching Framework (Backend)
 
-Fidus is the backend engine for a trust-based service matching framework that connects Clients (who post service requests) with Artisans (who bid and fulfil work). This repository contains the TypeScript/Node.js API, Prisma data models, and Cloudinary integration used by the Fidus backend.
+Fidus is the backend engine for a trust-based service matching framework that connects Clients (who post service requests) with Artisans (who bid and fulfil work). This repository contains the TypeScript backend that implements authentication, KYC, bidding, escrow-like flow, reviews, and a trust score (WTA) engine.
 
 ## Table of contents
 - [What this is](#what-this-is)
@@ -23,7 +23,7 @@ Fidus is the backend engine for a trust-based service matching framework that co
 - [Contact](#contact)
 
 ## What this is
-Fidus is a backend service for a marketplace that prioritizes trust: users verify identity documents (KYC), gain a trust score (WTA_Score), post service requests, place bids, manage escrow-like transactions, and leave reviews. It’s intended for mobile/web frontends and developer integration.
+Fidus is a backend service for a marketplace that prioritizes trust: users verify identity documents (KYC), gain a trust score (WTA_Score), post service requests, place bids, manage escrow-like transactions, and review completed work. The codebase is TypeScript-first and organized to separate HTTP controllers, business services, and validation.
 
 ### Stack
 - Language(s): TypeScript (100%)
@@ -31,10 +31,12 @@ Fidus is a backend service for a marketplace that prioritizes trust: users verif
 - Notable libraries:
   - Prisma (ORM) + Prisma adapter for raw pg pool
   - express (HTTP)
-  - cloudinary + multer-storage-cloudinary (file uploads)
+  - cloudinary + multer (file uploads)
   - jsonwebtoken (JWT auth)
   - bcrypt (password hashing)
-  - pg (Postgres client)
+  - zod (request validation)
+  - axios (external HTTP e.g., Paystack verification)
+  - eslint + @typescript-eslint (linting)
 
 ## Key features
 - JWT-based authentication (signup / login)
@@ -42,32 +44,47 @@ Fidus is a backend service for a marketplace that prioritizes trust: users verif
 - Service request lifecycle (create, list open requests, client’s requests)
 - Bids, escrow-like transactions and reviews modeled in Prisma
 - KYC document uploads (NIN, profile picture, business certificate) stored via Cloudinary
-- Trust score (WTA_Score) updates based on verification actions
+- Trust score (WTA_Score) updates based on verification actions and reviews
 - Health-check endpoint to confirm DB connectivity
 
 ## How it's organized
 Top-level (relevant):
+
 ```
 .
 ├── .gitignore
 ├── README.md
 └── fidus-backend/
     ├── package.json
+    ├── package-lock.json
+    ├── eslint.config.ts            # ESLint configuration
     ├── prisma/
-    │   └── schema.prisma         # data models (Users, Service_Requests, Bids, Reviews, KycSubmission, etc.)
-    └── src/
-        ├── index.ts              # app entrypoint (express server)
-        ├── routes/
-        │   ├── auth.ts          # signup / login
-        │   ├── kyc.ts           # KYC upload and status
-        │   └── services.ts      # service request endpoints
-        └── middleware/
-            ├── auth.ts          # JWT validation middleware
-            └── upload.ts        # Cloudinary + multer storage
+    │   ├── schema.prisma          # data models (Users, Service_Requests, Bids, Reviews, KycSubmission, etc.)
+    │   └── migrations/            # Prisma migrations (including escrow decimal migration)
+    ├── src/
+    │   ├── index.ts               # app entrypoint (express server)
+    │   ├── prisma.ts              # centralized Prisma client (pg Pool adapter)
+    │   ├── controllers/           # HTTP controllers (thin, call services)
+    │   │   ├── authController.ts
+    │   │   ├── serviceController.ts
+    │   │   ├── bidController.ts
+    │   │   ├── escrowController.ts
+    │   │   ├── kycController.ts
+    │   │   └── reviewController.ts
+    │   ├── services/              # Business logic (transactional, DB access)
+    │   ├── routes/                # Express routes glue (use controllers + validators)
+    │   ├── middleware/            # auth, upload helpers, validation middleware
+    │   ├── validators/            # Zod schemas for request validation
+    │   └── utils/                 # misc helpers (if any)
+    └── prisma/                    # schema + migrations
 ```
 
+Notes:
+- Logic is split into controllers (HTTP layer) and services (business layer) so unit-testing and reuse are easier.
+- Prisma client is centralized at `src/prisma.ts` (uses a pg Pool + PrismaPg adapter) and imported by services.
+
 ## How it fits together
-index.ts boots an Express server, wires middleware and routes, and uses Prisma (configured with a raw pg Pool adapter) to interact with PostgreSQL. Routes enforce role-based behavior: Clients create requests, Artisans view open requests and place bids (bidding logic is modeled in Prisma schema; routes can be extended to support bid placement). File uploads go through the upload middleware which stores assets on Cloudinary and saves URLs in the KycSubmission model.
+`index.ts` boots an Express server, wires middleware and routes, and uses Prisma to interact with PostgreSQL. Routes enforce role-based behavior: Clients create requests, Artisans view open requests and place bids. Services contain transactional logic (Prisma transactions) for operations that touch multiple tables (bid acceptance, escrow creation/release, completion handshake).
 
 ## Getting started (shortest path)
 Prerequisites:
@@ -107,7 +124,7 @@ npm run dev
 The API will be available at http://localhost:5000 by default.
 
 ## Environment variables
-Create a .env file with the following variables (examples):
+Create a `.env` file with the following variables (examples):
 
 - DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 - PORT=5000
@@ -115,16 +132,19 @@ Create a .env file with the following variables (examples):
 - CLOUDINARY_CLOUD_NAME="your_cloud_name"
 - CLOUDINARY_API_KEY="your_api_key"
 - CLOUDINARY_API_SECRET="your_api_secret"
+- PAYSTACK_SECRET_KEY="your_paystack_secret_key"  # required for escrow verification with Paystack (used in test/production modes)
+- NODE_ENV=development
 
 Notes:
 - DATABASE_URL must be a valid postgres URI.
 - JWT_SECRET should be strong and stored securely in production (use a secret manager).
+- PAYSTACK_SECRET_KEY is required if you plan to use the escrow verification endpoint (POST /api/escrow/verify).
 
 ## Database & Prisma
 Schema lives at `fidus-backend/prisma/schema.prisma`. Models include:
 - Users (uuid, FullName, Email, Role, PasswordHash, KYC_Verified, WTA_Score)
 - Service_Requests (RequestID, ClientID, Description, LocationCoordinates, PriceRange, Status)
-- Bids, Escrow_Transactions, Reviews
+- Bids, Escrow_Transactions (AmountHeld as Decimal), Reviews
 - KycSubmission (stores Cloudinary URLs)
 
 Common Prisma commands:
@@ -140,7 +160,7 @@ Development:
 npm run dev
 ```
 
-(If you add build/run scripts for production, standard steps would be: `npm run build` → transpile → `node dist/index.js` or use a process manager like PM2 / Docker.)
+(For production, add a build step to compile to `dist/` and run Node on the compiled JS or containerize the app.)
 
 ## API reference (quick)
 Base path: /api
@@ -156,16 +176,12 @@ Auth
 KYC
 - GET /api/kyc/status
   - Headers: Authorization: Bearer <token>
-  - Returns access-confirmation and decoded user
 - POST /api/kyc/upload-nin
   - Multipart form: field `nin_document` (image)
-  - Uploads NIN; upserts KYC record; sets user KYC_Verified = true and WTA_Score = 100.0
 - POST /api/kyc/upload-profile-pic
   - Multipart form: field `profile_picture`
-  - Uploads profile picture and increments WTA_Score by 10
 - POST /api/kyc/upload-business-cert
   - Multipart form: field `business_certificate`
-  - Uploads document and increments WTA_Score by 20
 
 Services
 - POST /api/services/create
@@ -175,6 +191,21 @@ Services
   - Returns all open service requests (role "Artisan" only)
 - GET /api/services/my-requests
   - Returns client's posted requests (role "Client" only)
+
+Bids
+- POST /api/bids/create
+  - Body: { requestID, proposedPrice, message }
+  - Role: Artisan
+- GET /api/bids/:jobId
+  - Role: Client (only for their job)
+- POST /api/bids/decision
+  - Body: { bidId, decision: 'Accept' | 'Counter', counterAmount? }
+  - Role: Client
+
+Escrow
+- POST /api/escrow/verify
+  - Body: { reference, requestId, bidId }
+  - Verifies payment (Paystack) and creates escrow record
 
 Health
 - GET /api/health
@@ -198,8 +229,9 @@ curl http://localhost:5000/api/kyc/status \
 ```
 
 ## File uploads / KYC (Cloudinary)
-- Upload middleware uses `multer` + `multer-storage-cloudinary`. Files are uploaded to Cloudinary and the returned `path` (secure URL) is saved in the `KycSubmission` model.
-- Allowed formats: jpg, jpeg, png (per current storage config)
+- Upload middleware uses `multer` (memory storage) and streams buffers to Cloudinary via the helper `uploadToCloudinary`.
+- Allowed formats: jpg, jpeg, png
+- File size limit: 5MB (configured in middleware)
 - Fields used by routes:
   - `nin_document` for NIN upload
   - `profile_picture` for profile picture
@@ -214,20 +246,21 @@ curl -X POST http://localhost:5000/api/kyc/upload-nin \
 
 ## Development tips
 - The project runs TypeScript directly using `tsx` for convenience. For production builds, add a `build` script to compile to `dist/` and run Node on the compiled JS.
-- Prisma uses `@prisma/adapter-pg` with a provided pg Pool; inspect `src/index.ts` and route files for how the pool and adapter are configured.
-- The code uses explicit field names that match Prisma models (e.g., `users`, `service_Requests`, `kycSubmission`). Use `npx prisma studio` while developing to inspect records.
+- Request validation is implemented with Zod (see `src/validators`).
+- ESLint + @typescript-eslint are included; run the linter locally during development.
+- Centralize DB access in `src/prisma.ts`; services should import that client instead of creating new PrismaClients.
 
 ## Testing & linting
-- There are no test or lint scripts in package.json yet. Recommended additions:
+- The repository currently includes ESLint config. Recommended additions:
   - Jest / Vitest for unit tests
-  - ESLint + Prettier for code style
+  - Prettier for consistent formatting
   - Add CI workflow (GitHub Actions) to run tests and lint on PRs
 
 ## Security & production notes
-- Keep JWT_SECRET and Cloudinary secrets out of source control. Use environment secrets in production.
+- Keep JWT_SECRET, PAYSTACK_SECRET_KEY and Cloudinary secrets out of source control. Use environment secrets in production.
 - Use HTTPS / TLS for production traffic.
-- Consider rate-limiting and validation libraries (e.g., celebrate / Joi or zod) for stricter request validation.
-- File upload limits: currently allowed image types and Cloudinary transformations are configured — consider size limits and virus scanning for production.
+- Consider rate-limiting and strict request validation for public endpoints.
+- Ensure you back up your database prior to applying Prisma migrations that alter column types (e.g., escrow AmountHeld → DECIMAL).
 
 ## Contributing
 - Open an issue to discuss major changes.
