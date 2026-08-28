@@ -57,7 +57,7 @@ model Escrow_Transactions {
   TransactionID String           @id @default(uuid()) @db.Uuid
   RequestID     String           @unique @db.Uuid
   Service       Service_Requests @relation(fields: [RequestID], references: [RequestID])
-  AmountHeld    Float
+  AmountHeld    Decimal          // Upgraded for precise financial math
   EscrowStatus  String           @default("Pending") // Funded, Released, Disputed
 }
 

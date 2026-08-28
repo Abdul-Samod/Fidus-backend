@@ -1,14 +1,9 @@
 import { Router, type Response } from "express";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
+import prisma from "../prisma.js";
 import { updateArtisanWTA } from "../services/wtaService.js";
 
-// Database Connection Setup
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+
 
 const router = Router();
 
@@ -166,7 +161,7 @@ router.get('/my-requests', requireAuth, async (req: AuthRequest, res: Response):
 });
 
 // ==========================================
-// THE 2-PARTY COMPLETION HANDSHAKE (Client + Artisan)
+// 4. THE 2-PARTY COMPLETION HANDSHAKE (Client + Artisan)
 // ==========================================
 router.post('/:jobId/complete', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -225,23 +220,32 @@ router.post('/:jobId/complete', requireAuth, async (req: AuthRequest, res: Respo
         // 4. CHECK THE HANDSHAKE: Did both parties agree?
         if (updatedJob.ClientCompleted && updatedJob.ArtisanCompleted) {
             
-            // Finalize the job status
-            const finalizedJob = await prisma.service_Requests.update({
-                where: { RequestID: jobId as string },
-                data: { Status: 'Completed' }
-            });
+            // Finalize the job status AND release the escrow funds atomically
+            const [finalizedJob, releasedEscrow] = await prisma.$transaction([
+                prisma.service_Requests.update({
+                    where: { RequestID: jobId as string },
+                    data: { Status: 'Completed' }
+                }),
+                prisma.escrow_Transactions.update({
+                    where: { RequestID: jobId as string },
+                    data: { EscrowStatus: 'Released' }
+                })
+            ]);
 
             // TRIGGER 1: Fire the WTA Engine immediately for completion points!
             const wtaMetrics = await updateArtisanWTA(acceptedBid.ArtisanID);
 
             res.status(200).json({
                 status: 'success',
-                message: 'Handshake complete! Job is officially closed. WTA Completion points awarded!',
-                data: { job: finalizedJob, wta_metrics: wtaMetrics }
+                message: 'Handshake complete! Job closed, escrow funds released, and WTA updated!',
+                data: { 
+                    job: finalizedJob, 
+                    escrow: releasedEscrow, 
+                    wta_metrics: wtaMetrics 
+                }
             });
             return;
         }
-
         // 5. If waiting on the other party
         res.status(200).json({
             status: 'success',
