@@ -36,10 +36,10 @@ app.get('/api/health', async (req, res) => {
       message: 'Fidus Backend is LIVE and securely connected to PostgreSQL!'
     });
   } catch (error) {
+    console.error("Database Health Check Failed:", error);
     res.status(500).json({
       status: 'error',
-      message: 'Database connection failed.',
-      details: error
+      message: 'Database connection failed.'
     });
   }
 });

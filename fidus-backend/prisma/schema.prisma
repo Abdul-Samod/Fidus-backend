@@ -6,11 +6,36 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  Client
+  Artisan
+}
+
+enum ServiceStatus {
+  Open
+  Assigned
+  Completed
+}
+
+enum BidStatus {
+  Pending
+  Counter_Offered
+  Accepted
+  Rejected
+}
+
+enum EscrowStatus {
+  Pending
+  Funded
+  Released
+  Disputed
+}
+
 model Users {
   uuid              String             @id @default(uuid()) @db.Uuid
   FullName          String
   Email             String             @unique
-  Role              String             // "Client" or "Artisan"
+  Role              Role             
   PasswordHash      String
   KYC_Verified      Boolean            @default(false)
   WTA_Score         Float              @default(0.0)
@@ -20,8 +45,10 @@ model Users {
   ReviewsGiven      Reviews[]          @relation("ClientReviews")
   ReviewsReceived   Reviews[]          @relation("ArtisanReviews")
 
-  // CLOUDINARY LINK: Connects the user to their KYC documents
   kycDetails        KycSubmission?
+
+  CreatedAt         DateTime           @default(now())
+  UpdatedAt         DateTime           @updatedAt
 }
 
 model Service_Requests {
@@ -31,13 +58,16 @@ model Service_Requests {
   Description         String
   LocationCoordinates String
   PriceRange          String  
-  Status              String                @default("Open") // Open, Assigned, Completed
+  Status              ServiceStatus         @default(Open) 
   ClientCompleted     Boolean               @default(false)
   ArtisanCompleted    Boolean               @default(false)
   
   Bids                Bids[]
   Escrow_Transaction  Escrow_Transactions?
   Reviews             Reviews[]
+
+  CreatedAt           DateTime              @default(now())
+  UpdatedAt           DateTime              @updatedAt
 }
 
 model Bids {
@@ -47,18 +77,24 @@ model Bids {
   ArtisanID     String           @db.Uuid
   Artisan       Users            @relation(fields: [ArtisanID], references: [uuid])
   
-  ProposedPrice Decimal          // Upgraded for precise financial math
-  Message       String           // The proposal message
-  CounterAmount Decimal?         // Optional: The client's counter-offer
-  BidStatus     String           @default("Pending") // Pending, Counter_Offered, Accepted, Rejected
+  ProposedPrice Decimal          
+  Message       String           
+  CounterAmount Decimal?         
+  BidStatus     BidStatus        @default(Pending) 
+
+  CreatedAt     DateTime         @default(now())
+  UpdatedAt     DateTime         @updatedAt
 }
 
 model Escrow_Transactions {
   TransactionID String           @id @default(uuid()) @db.Uuid
   RequestID     String           @unique @db.Uuid
   Service       Service_Requests @relation(fields: [RequestID], references: [RequestID])
-  AmountHeld    Decimal          // Upgraded for precise financial math
-  EscrowStatus  String           @default("Pending") // Funded, Released, Disputed
+  AmountHeld    Decimal          
+  EscrowStatus  EscrowStatus     @default(Pending) 
+
+  CreatedAt     DateTime         @default(now())
+  UpdatedAt     DateTime         @updatedAt
 }
 
 model Reviews {
@@ -70,9 +106,10 @@ model Reviews {
   ArtisanID  String           @db.Uuid
   Artisan    Users            @relation("ArtisanReviews", fields: [ArtisanID], references: [uuid])
   
-  Rating     Int              // The "F" Variable: 1 to 5 stars
-  Comment    String?          // Qualitative feedback
+  Rating     Int              
+  Comment    String?          
   CreatedAt  DateTime         @default(now())
+  UpdatedAt  DateTime         @updatedAt
 }
 
 // Stores the secure Cloudinary URLs
@@ -85,5 +122,6 @@ model KycSubmission {
   profilePicUrl String?
   businessCert  String?  
   
+  createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
