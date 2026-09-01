@@ -30,8 +30,16 @@ export const placeBid = async (req: AuthRequest, res: Response): Promise<void> =
             res.status(404).json({ status: 'error', message: 'Service request not found.' });
             return;
         }
+        if (error.message === "ALREADY_BID") {
+            res.status(400).json({ status: 'error', message: 'You have already placed a bid on this job.' });
+            return;
+        }
         if (error.message === "JOB_NOT_OPEN") {
             res.status(400).json({ status: 'error', message: 'This job is no longer open for bidding.' });
+            return;
+        }
+        if (error.message === "UNVERIFIED_ARTISAN") {
+            res.status(403).json({ status: 'error', message: 'You must complete KYC verification before placing bids.' });
             return;
         }
         res.status(500).json({ status: 'error', message: 'Failed to place bid.' });
@@ -114,6 +122,15 @@ export const makeBidDecision = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
+        if (result.type === 'Reject') {
+            res.status(200).json({
+                status: 'success',
+                message: 'Bid rejected.',
+                data: result.updatedBid
+            });
+            return;
+        }
+
     } catch (error: any) {
         console.error("BID DECISION ERROR:", error.message);
         if (error.message === "BID_NOT_FOUND") {
@@ -129,5 +146,42 @@ export const makeBidDecision = async (req: AuthRequest, res: Response): Promise<
             return;
         }
         res.status(500).json({ status: 'error', message: 'Failed to process bid decision.' });
+    }
+};
+
+export const artisanAcceptCounter = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const artisanUuid = req.user!.uuid;
+        const userRole = req.user!.role;
+        const { bidId } = req.body;
+
+        if (userRole !== 'Artisan') {
+            res.status(403).json({ status: 'error', message: 'Access denied. Only artisans can accept counter offers.' });
+            return;
+        }
+
+        const result = await bidService.artisanAcceptCounter(artisanUuid, bidId);
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Counter offer accepted! The job is now assigned to you.',
+            data: result
+        });
+
+    } catch (error: any) {
+        console.error("ARTISAN ACCEPT COUNTER ERROR:", error.message);
+        if (error.message === "BID_NOT_FOUND") {
+            res.status(404).json({ status: 'error', message: 'Bid not found.' });
+            return;
+        }
+        if (error.message === "UNAUTHORIZED_ARTISAN") {
+            res.status(403).json({ status: 'error', message: 'Unauthorized. You do not own this bid.' });
+            return;
+        }
+        if (error.message === "INVALID_STATUS") {
+            res.status(400).json({ status: 'error', message: 'Bid is not in a counter-offered state.' });
+            return;
+        }
+        res.status(500).json({ status: 'error', message: 'Failed to accept counter offer.' });
     }
 };

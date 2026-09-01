@@ -3,12 +3,22 @@ import { type AuthRequest } from "../middleware/auth.js";
 import { uploadToCloudinary } from "../middleware/upload.js";
 import * as kycService from "../services/kycService.js";
 
-export const getStatus = (req: AuthRequest, res: Response) => {
-    res.status(200).json({
-        status: 'success',
-        message: 'Access Granted to KYC route',
-        user: req.user
-    });
+export const getStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const artisanUuid = req.user!.uuid;
+        const userRecord = await kycService.getKycStatus(artisanUuid);
+        if (!userRecord) {
+            res.status(404).json({ status: 'error', message: 'User not found' });
+            return;
+        }
+        res.status(200).json({
+            status: 'success',
+            message: 'Access Granted to KYC route',
+            user: userRecord
+        });
+    } catch (error: any) {
+        res.status(500).json({ status: 'error', message: 'Failed to fetch KYC status' });
+    }
 };
 
 export const uploadNIN = async (req: AuthRequest, res: Response): Promise<void> => {

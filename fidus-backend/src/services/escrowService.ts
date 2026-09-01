@@ -29,7 +29,7 @@ export const verifyTransaction = async (reference: string, requestId: string, bi
             data: {
                 RequestID: requestId,
                 AmountHeld: amountPaid,
-                EscrowStatus: 'Pending'
+                EscrowStatus: 'Funded'
             }
         }),
         prisma.service_Requests.update({

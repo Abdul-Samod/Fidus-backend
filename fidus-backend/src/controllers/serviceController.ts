@@ -6,7 +6,7 @@ export const createServiceRequest = async (req: AuthRequest, res: Response): Pro
     try {
         const clientUuid = req.user!.uuid;
         const clientRole = req.user!.role;
-        const { Description, LocationCoordinates, PriceRange } = req.body;
+        const { Title, Description, LocationCoordinates, PriceRange } = req.body;
 
         if (clientRole !== 'Client') {
             res.status(403).json({
@@ -17,7 +17,7 @@ export const createServiceRequest = async (req: AuthRequest, res: Response): Pro
         }
 
         const newServiceRequest = await ServiceRequestsService.createServiceRequest(
-            clientUuid, Description, LocationCoordinates, PriceRange
+            clientUuid, Title, Description, LocationCoordinates, PriceRange
         );
 
         res.status(201).json({
@@ -46,7 +46,7 @@ export const getOpenServiceRequests = async (req: AuthRequest, res: Response): P
             return;
         }
 
-        const openJobs = await ServiceRequestsService.getOpenServiceRequests();
+        const openJobs = await ServiceRequestsService.getOpenServiceRequests(req.user!.uuid);
 
         if (openJobs.length === 0) {
             res.status(200).json({

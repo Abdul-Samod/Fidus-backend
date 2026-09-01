@@ -1,10 +1,11 @@
 import prisma from "../prisma.js";
 import { updateArtisanWTA } from "./wtaService.js";
 
-export const createServiceRequest = async (clientUuid: string, description: string, locationCoordinates: string, priceRange: string) => {
+export const createServiceRequest = async (clientUuid: string, title: string, description: string, locationCoordinates: string, priceRange: string) => {
     return await prisma.service_Requests.create({
         data: {
             ClientID: clientUuid,
+            Title: title,
             Description: description,
             LocationCoordinates: locationCoordinates,
             PriceRange: priceRange,
@@ -13,9 +14,21 @@ export const createServiceRequest = async (clientUuid: string, description: stri
     });
 };
 
-export const getOpenServiceRequests = async () => {
+export const getOpenServiceRequests = async (artisanUuid: string) => {
     return await prisma.service_Requests.findMany({
-        where: { Status: 'Open' },
+        where: {
+            OR: [
+                { Status: 'Open' },
+                { Bids: { some: { ArtisanID: artisanUuid } } }
+            ]
+        },
+        include: {
+            Bids: {
+                where: { ArtisanID: artisanUuid }
+            },
+            Escrow_Transaction: true,
+            Reviews: true
+        },
         orderBy: { CreatedAt: 'desc' }
     });
 };
@@ -23,6 +36,10 @@ export const getOpenServiceRequests = async () => {
 export const getMyServiceRequests = async (clientUuid: string) => {
     return await prisma.service_Requests.findMany({
         where: { ClientID: clientUuid },
+        include: {
+            Escrow_Transaction: true,
+            Reviews: true
+        },
         orderBy: { CreatedAt: 'desc' }
     });
 };

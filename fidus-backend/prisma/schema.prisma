@@ -55,6 +55,7 @@ model Service_Requests {
   RequestID           String                @id @default(uuid()) @db.Uuid
   ClientID            String                @db.Uuid
   Client              Users                 @relation(fields: [ClientID], references: [uuid])
+  Title               String                @default("")
   Description         String
   LocationCoordinates String
   PriceRange          String  

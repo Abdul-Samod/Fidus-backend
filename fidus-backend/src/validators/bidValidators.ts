@@ -17,7 +17,7 @@ export const getBidsSchema = z.object({
 export const bidDecisionSchema = z.object({
     body: z.object({
         bidId: z.string().uuid("Invalid Bid ID format"),
-        decision: z.enum(['Accept', 'Counter']),
+        decision: z.enum(['Accept', 'Counter', 'Reject']),
         counterAmount: z.number().positive("Counter amount must be positive").optional(),
     }).refine((data) => {
         if (data.decision === 'Counter' && data.counterAmount === undefined) {
@@ -27,5 +27,11 @@ export const bidDecisionSchema = z.object({
     }, {
         message: "You must provide a counterAmount to haggle",
         path: ["counterAmount"]
+    })
+});
+
+export const artisanAcceptCounterSchema = z.object({
+    body: z.object({
+        bidId: z.string().uuid("Invalid Bid ID format"),
     })
 });
