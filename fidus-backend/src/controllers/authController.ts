@@ -34,8 +34,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         res.cookie('fidus_refresh_token', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            secure: true, // Required for cross-site cookies
+            sameSite: 'none', // Allows cross-domain from Vercel to Render
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
 
@@ -71,12 +71,20 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
         });
     } catch (error: any) {
         // If refresh token is invalid or expired, clear the cookie
-        res.clearCookie('fidus_refresh_token');
+        res.clearCookie('fidus_refresh_token', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        });
         res.status(401).json({ status: 'error', message: 'Refresh token expired or invalid.' });
     }
 };
 
 export const logout = async (req: Request, res: Response): Promise<void> => {
-    res.clearCookie('fidus_refresh_token');
+    res.clearCookie('fidus_refresh_token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none'
+    });
     res.status(200).json({ status: 'success', message: 'Logged out successfully.' });
 };
