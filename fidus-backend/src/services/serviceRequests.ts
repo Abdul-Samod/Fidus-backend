@@ -14,34 +14,53 @@ export const createServiceRequest = async (clientUuid: string, title: string, de
     });
 };
 
-export const getOpenServiceRequests = async (artisanUuid: string) => {
-    return await prisma.service_Requests.findMany({
-        where: {
-            OR: [
-                { Status: 'Open' },
-                { Bids: { some: { ArtisanID: artisanUuid } } }
-            ]
-        },
-        include: {
-            Bids: {
-                where: { ArtisanID: artisanUuid }
+export const getOpenServiceRequests = async (artisanUuid: string, page: number = 1, limit: number = 10) => {
+    const skip = (page - 1) * limit;
+    
+    const whereCondition = {
+        OR: [
+            { Status: 'Open' as any },
+            { Bids: { some: { ArtisanID: artisanUuid } } }
+        ]
+    };
+
+    const [total, data] = await Promise.all([
+        prisma.service_Requests.count({ where: whereCondition }),
+        prisma.service_Requests.findMany({
+            where: whereCondition,
+            include: {
+                Bids: { where: { ArtisanID: artisanUuid } },
+                Escrow_Transaction: true,
+                Reviews: true
             },
-            Escrow_Transaction: true,
-            Reviews: true
-        },
-        orderBy: { CreatedAt: 'desc' }
-    });
+            orderBy: { CreatedAt: 'desc' },
+            skip,
+            take: limit
+        })
+    ]);
+
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
 };
 
-export const getMyServiceRequests = async (clientUuid: string) => {
-    return await prisma.service_Requests.findMany({
-        where: { ClientID: clientUuid },
-        include: {
-            Escrow_Transaction: true,
-            Reviews: true
-        },
-        orderBy: { CreatedAt: 'desc' }
-    });
+export const getMyServiceRequests = async (clientUuid: string, page: number = 1, limit: number = 10) => {
+    const skip = (page - 1) * limit;
+    const whereCondition = { ClientID: clientUuid };
+
+    const [total, data] = await Promise.all([
+        prisma.service_Requests.count({ where: whereCondition }),
+        prisma.service_Requests.findMany({
+            where: whereCondition,
+            include: {
+                Escrow_Transaction: true,
+                Reviews: true
+            },
+            orderBy: { CreatedAt: 'desc' },
+            skip,
+            take: limit
+        })
+    ]);
+
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
 };
 
 export const handleServiceCompletionHandshake = async (jobId: string, userUuid: string, userRole: string) => {

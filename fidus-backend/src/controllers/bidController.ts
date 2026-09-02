@@ -60,21 +60,26 @@ export const getBidsForJob = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
-        const bids = await bidService.getBidsForJob(clientUuid, jobId);
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
 
-        if (bids.length === 0) {
+        const result = await bidService.getBidsForJob(clientUuid, jobId, page, limit);
+
+        if (result.data.length === 0) {
             res.status(200).json({
                 status: 'success',
                 message: 'No bids yet. Hang tight!',
-                data: []
+                data: [],
+                meta: result.meta
             });
             return;
         }
 
         res.status(200).json({
             status: 'success',
-            message: `Found ${bids.length} bid(s) for this job.`,
-            data: bids
+            message: `Found ${result.data.length} bid(s) for this job.`,
+            data: result.data,
+            meta: result.meta
         });
 
     } catch (error: any) {

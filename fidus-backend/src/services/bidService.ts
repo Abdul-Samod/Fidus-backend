@@ -41,7 +41,7 @@ export const placeBid = async (artisanUuid: string, requestID: string, proposedP
     return newBid;
 };
 
-export const getBidsForJob = async (clientUuid: string, jobId: string) => {
+export const getBidsForJob = async (clientUuid: string, jobId: string, page: number = 1, limit: number = 10) => {
     const job = await prisma.service_Requests.findUnique({
         where: { RequestID: jobId }
     });
@@ -54,10 +54,16 @@ export const getBidsForJob = async (clientUuid: string, jobId: string) => {
         throw new Error("UNAUTHORIZED_CLIENT");
     }
 
-    const bids = await prisma.bids.findMany({
-        where: { RequestID: jobId },
-        include: {
-            Artisan: {
+    const skip = (page - 1) * limit;
+
+    const [total, data] = await Promise.all([
+        prisma.bids.count({ where: { RequestID: jobId } }),
+        prisma.bids.findMany({
+            where: { RequestID: jobId },
+            skip,
+            take: limit,
+            include: {
+                Artisan: {
                 select: {
                     FullName: true,
                     WTA_Score: true,
@@ -75,9 +81,10 @@ export const getBidsForJob = async (clientUuid: string, jobId: string) => {
                 WTA_Score: 'desc'
             }
         }
-    });
+        })
+    ]);
 
-    return bids;
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
 };
 
 export const makeBidDecision = async (clientUuid: string, bidId: string, decision: 'Accept' | 'Counter' | 'Reject', counterAmount?: number) => {
