@@ -47,3 +47,16 @@ export const uploadBusinessCert = async (artisanUuid: string, secureUrl: string)
 
     return kycRecord;
 };
+
+export const getKycStatus = async (artisanUuid: string) => {
+    return await prisma.users.findUnique({
+        where: { uuid: artisanUuid },
+        select: {
+            uuid: true,
+            FullName: true,
+            KYC_Verified: true,
+            WTA_Score: true,
+            kycDetails: true
+        }
+    });
+};

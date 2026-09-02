@@ -4,7 +4,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts"
+    "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
+    "build": "prisma generate && prisma migrate deploy && tsc -b",
+    "start": "node dist/index.js"
   },
   "keywords": [],
   "author": "",
@@ -16,9 +18,11 @@
     "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.11.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "pg": "^8.22.0",
@@ -27,6 +31,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",

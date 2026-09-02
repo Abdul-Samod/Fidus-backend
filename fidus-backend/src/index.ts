@@ -11,12 +11,18 @@ import escrowRoutes from './routes/escrow.js';
 
 
 
+import { errorHandler } from './middleware/errorHandler.js';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, 'http://localhost:5173'] : true;
+app.use(cors({ origin: allowedOrigins, credentials: true })); // Needs credentials: true for cookies
 app.use(express.json());
+app.use(cookieParser());
 
 // Auth Routes
 app.use('/api/auth', authRoutes);
@@ -43,6 +49,8 @@ app.get('/api/health', async (req, res) => {
     });
   }
 });
+
+app.use(errorHandler);
 
 // Start the server
 app.listen(PORT, () => {

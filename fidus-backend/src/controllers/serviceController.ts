@@ -6,7 +6,7 @@ export const createServiceRequest = async (req: AuthRequest, res: Response): Pro
     try {
         const clientUuid = req.user!.uuid;
         const clientRole = req.user!.role;
-        const { Description, LocationCoordinates, PriceRange } = req.body;
+        const { Title, Description, LocationCoordinates, PriceRange } = req.body;
 
         if (clientRole !== 'Client') {
             res.status(403).json({
@@ -17,7 +17,7 @@ export const createServiceRequest = async (req: AuthRequest, res: Response): Pro
         }
 
         const newServiceRequest = await ServiceRequestsService.createServiceRequest(
-            clientUuid, Description, LocationCoordinates, PriceRange
+            clientUuid, Title, Description, LocationCoordinates, PriceRange
         );
 
         res.status(201).json({
@@ -46,21 +46,26 @@ export const getOpenServiceRequests = async (req: AuthRequest, res: Response): P
             return;
         }
 
-        const openJobs = await ServiceRequestsService.getOpenServiceRequests();
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
 
-        if (openJobs.length === 0) {
+        const result = await ServiceRequestsService.getOpenServiceRequests(req.user!.uuid, page, limit);
+
+        if (result.data.length === 0) {
             res.status(200).json({
                 status: 'success',
                 message: 'No open jobs at the moment. Check back later!',
-                data: []
+                data: [],
+                meta: result.meta
             });
             return;
         }
 
         res.status(200).json({
             status: 'success',
-            message: `Found ${openJobs.length} open service request(s)!`,
-            data: openJobs
+            message: `Found ${result.data.length} open service request(s)!`,
+            data: result.data,
+            meta: result.meta
         });
     } catch (error: any) {
         console.error("FETCH OPEN JOBS ERROR:", error.message);
@@ -84,21 +89,26 @@ export const getMyServiceRequests = async (req: AuthRequest, res: Response): Pro
             return;
         }
 
-        const myJobs = await ServiceRequestsService.getMyServiceRequests(userUuid);
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
 
-        if (myJobs.length === 0) {
+        const result = await ServiceRequestsService.getMyServiceRequests(userUuid, page, limit);
+
+        if (result.data.length === 0) {
             res.status(200).json({
                 status: 'success',
                 message: 'You have not posted any service requests yet.',
-                data: []
+                data: [],
+                meta: result.meta
             });
             return;
         }
 
         res.status(200).json({
             status: 'success',
-            message: `Found ${myJobs.length} of your service request(s).`,
-            data: myJobs
+            message: `Found ${result.data.length} of your service request(s).`,
+            data: result.data,
+            meta: result.meta
         });
     } catch (error: any) {
         console.error("FETCH MY JOBS ERROR:", error.message);

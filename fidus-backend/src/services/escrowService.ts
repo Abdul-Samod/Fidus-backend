@@ -1,7 +1,13 @@
 import axios from 'axios';
 import prisma from "../prisma.js";
 
-export const verifyTransaction = async (reference: string, requestId: string, bidId: string) => {
+export const verifyTransaction = async (clientUuid: string, reference: string, requestId: string, bidId: string) => {
+    // 1. Verify Job Ownership
+    const job = await prisma.service_Requests.findUnique({ where: { RequestID: requestId } });
+    if (!job || job.ClientID !== clientUuid) {
+        throw new Error('UNAUTHORIZED_CLIENT');
+    }
+
     const paystackRes = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
         headers: {
             Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
@@ -29,7 +35,7 @@ export const verifyTransaction = async (reference: string, requestId: string, bi
             data: {
                 RequestID: requestId,
                 AmountHeld: amountPaid,
-                EscrowStatus: 'Pending'
+                EscrowStatus: 'Funded'
             }
         }),
         prisma.service_Requests.update({

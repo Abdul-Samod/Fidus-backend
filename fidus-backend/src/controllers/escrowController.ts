@@ -1,11 +1,13 @@
 import { type Request, type Response } from "express";
+import { type AuthRequest } from "../middleware/auth.js";
 import * as escrowService from "../services/escrowService.js";
 
-export const verifyTransaction = async (req: Request, res: Response): Promise<void> => {
+export const verifyTransaction = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+        const clientUuid = req.user!.uuid;
         const { reference, requestId, bidId } = req.body;
 
-        const result = await escrowService.verifyTransaction(reference, requestId, bidId);
+        const result = await escrowService.verifyTransaction(clientUuid, reference, requestId, bidId);
 
         res.status(200).json({
             status: 'success',
@@ -15,6 +17,10 @@ export const verifyTransaction = async (req: Request, res: Response): Promise<vo
 
     } catch (error: any) {
         console.error("ESCROW VERIFICATION ERROR:", error.message);
+        if (error.message === 'UNAUTHORIZED_CLIENT') {
+            res.status(403).json({ status: 'error', message: 'You do not have permission to process this payment.' });
+            return;
+        }
         if (error.message === 'PAYMENT_FAILED') {
             res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
             return;

@@ -42,9 +42,28 @@ export const loginUser = async (email: string, password: string) => {
         throw new Error("INVALID_CREDENTIALS");
     }
 
-    const token = jwt.sign({ uuid: user.uuid, role: user.Role }, JWT_SECRET, {
-        expiresIn: "24h",
+    const accessToken = jwt.sign({ uuid: user.uuid, role: user.Role }, JWT_SECRET, {
+        expiresIn: "15m",
     });
 
-    return { user, token };
+    const refreshToken = jwt.sign({ uuid: user.uuid, role: user.Role }, JWT_SECRET, {
+        expiresIn: "7d",
+    });
+
+    return { user, accessToken, refreshToken };
+};
+
+export const refreshAccessToken = async (token: string) => {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { uuid: string, role: string };
+        
+        // Issue new access token
+        const newAccessToken = jwt.sign({ uuid: decoded.uuid, role: decoded.role }, JWT_SECRET, {
+            expiresIn: "15m",
+        });
+
+        return newAccessToken;
+    } catch (error) {
+        throw new Error('INVALID_REFRESH_TOKEN');
+    }
 };
