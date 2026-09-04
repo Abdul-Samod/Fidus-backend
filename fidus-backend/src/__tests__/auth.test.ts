@@ -27,7 +27,9 @@ describe('Auth Integration Tests (Controllers & Routes)', () => {
             Role: 'Artisan',
             PasswordHash: 'hashedpassword',
             KYC_Verified: false,
-            WTA_Score: 0
+            WTA_Score: 0,
+            CreatedAt: new Date(),
+            UpdatedAt: new Date()
         });
 
         const res = await request(app)
@@ -54,7 +56,9 @@ describe('Auth Integration Tests (Controllers & Routes)', () => {
                 Role: 'Artisan',
                 PasswordHash: 'hashedpassword',
                 KYC_Verified: false,
-                WTA_Score: 0
+                WTA_Score: 0,
+                CreatedAt: new Date(),
+                UpdatedAt: new Date()
             },
             accessToken: 'mocked-jwt-token',
             refreshToken: 'mocked-refresh-token'
@@ -74,8 +78,10 @@ describe('Auth Integration Tests (Controllers & Routes)', () => {
         // Check if the cookie was set correctly
         const cookies = res.headers['set-cookie'];
         expect(cookies).toBeDefined();
-        expect(cookies[0]).toContain('fidus_refresh_token=mocked-refresh-token');
-        expect(cookies[0]).toContain('HttpOnly');
+        if (cookies) {
+            expect(cookies[0]).toContain('fidus_refresh_token=mocked-refresh-token');
+            expect(cookies[0]).toContain('HttpOnly');
+        }
     });
 
 });
