@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
     "build": "prisma generate && prisma migrate deploy && tsc -b",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -38,14 +39,17 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^25.9.3",
     "@types/pg": "^8.20.0",
+    "@types/supertest": "^7.2.1",
     "eslint": "^10.9.1",
     "globals": "^17.11.0",
     "jiti": "^2.7.0",
     "nodemon": "^3.1.14",
     "prisma": "^7.9.0",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.68.0"
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
   }
 }

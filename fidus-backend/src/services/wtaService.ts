@@ -3,6 +3,18 @@ import prisma from "../prisma.js";
 
 
 /**
+ * Pure function to calculate the WTA score based on provided metrics.
+ * Exported specifically for Unit Testing without database dependencies.
+ */
+export const calculateWTAScore = (B: number, C: number, F: number, N: number): number => {
+    const W1 = 0.6;  // Completion Weight
+    const W2 = 4.0;  // Review Weight
+    const logDampener = Math.log10(N + 1);
+    const rawWTA = B + (B * (W1 * C) + (W2 * F)) * logDampener;
+    return parseFloat(rawWTA.toFixed(2));
+};
+
+/**
  * Calculates and updates the Fidus Weighted Trust Algorithm (WTA) score for a given artisan.
  * Returns the exact metrics used for the calculation.
  */
@@ -57,9 +69,7 @@ export const updateArtisanWTA = async (artisanID: string) => {
     const F = reviewStats._avg.Rating || 0;
 
     // 6. Execute the Dynamic WTA Formula
-    const logDampener = Math.log10(N + 1);
-    const rawWTA = B + (B * (W1 * C) + (W2 * F)) * logDampener;
-    const finalWTAScore = parseFloat(rawWTA.toFixed(2));
+    const finalWTAScore = calculateWTAScore(B, C, F, N);
 
     // 7. Save the new score to the database
     await prisma.users.update({
