@@ -18,11 +18,12 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
             },
         });
     } catch (error: any) {
+        console.error("Signup Controller Error:", error);
         if (error.message === "EMAIL_EXISTS") {
-            res.status(400).json({ message: "Email is already registered." });
+            res.status(400).json({ status: "error", message: "Email is already registered." });
             return;
         }
-        res.status(500).json({ message: "Internal server error during signup.", error: error.message });
+        res.status(500).json({ status: "error", message: "Internal server error during signup.", error: error.message });
     }
 };
 
@@ -43,14 +44,22 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             status: "success",
             message: "Login successful!",
             token: accessToken,
-            user: { uuid: user.uuid, fullName: user.FullName, role: user.Role },
+            user: { 
+                uuid: user.uuid, 
+                fullName: user.FullName, 
+                email: user.Email,
+                role: user.Role,
+                KYC_Verified: user.KYC_Verified,
+                WTA_Score: user.WTA_Score
+            },
         });
     } catch (error: any) {
+        console.error("Login Controller Error:", error);
         if (error.message === "INVALID_CREDENTIALS") {
-            res.status(400).json({ message: "Invalid email or password." });
+            res.status(400).json({ status: "error", message: "Invalid email or password." });
             return;
         }
-        res.status(500).json({ message: "Internal server error during login.", error: error.message });
+        res.status(500).json({ status: "error", message: "Internal server error during login.", error: error.message });
     }
 };
 
@@ -70,6 +79,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
             token: newAccessToken
         });
     } catch (error: any) {
+        console.error("Refresh Token Error:", error);
         // If refresh token is invalid or expired, clear the cookie
         res.clearCookie('fidus_refresh_token', {
             httpOnly: true,
